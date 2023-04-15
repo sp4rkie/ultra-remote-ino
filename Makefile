@@ -1,17 +1,23 @@
+MACHINE != uname -n
+ifeq ($(MACHINE),roja)
+    FLAGS = -DCFG_LOCAL
+endif
 ifneq ($(findstring esp32-2 ,$(MAKECMDGOALS)),)
     OTA_ADDR = esp32-2
-    ultra_remote.ino.cpp_CFLAGS = -DESP32_2 -fpermissive
+    ultra_remote.ino.cpp_CFLAGS = -DESP32_2 -fpermissive $(FLAGS)
 #    FLASH_DEF = 16M
 else ifneq ($(findstring esp32-9 ,$(MAKECMDGOALS)),)
     OTA_ADDR = esp32-9
-    ultra_remote.ino.cpp_CFLAGS = -DESP32_9 -fpermissive
+    ultra_remote.ino.cpp_CFLAGS = -DESP32_9 -fpermissive $(FLAGS)
 #    FLASH_DEF = 16M
 endif
 ifeq ($(OTA_ADDR),)
     $(error params wrong or missing: make <machine> <target>)
 endif
 ifneq ($(findstring ota,$(MAKECMDGOALS)),)
+ifeq ($(MACHINE),roja)
     OTA_HPORT != esp32_time_wait
+endif
     $(info OTA_ADDR: $(OTA_ADDR))
     $(info OTA_HPORT: $(OTA_HPORT))
 endif

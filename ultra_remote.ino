@@ -5,7 +5,11 @@
 this may not happen
 #endif
 
+#ifdef CFG_LOCAL
+#include "cfg_local.h"
+#else
 #include "cfg.h"
+#endif
 #include "mlcf.h"
 #include "mota.h"
 #include <esp_wifi.h>                   // required by esp_wifi_stop()
