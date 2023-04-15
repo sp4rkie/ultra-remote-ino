@@ -52,7 +52,7 @@ typedef _i64          *_i64p;
 //#define PR05_(fmt, a...) trc_m(fct4_debugid, "[ %02d ] " fmt, smp_processor_id(), ##a) // sel1: activate debug to buffer
 #define PR04_(fmt, a...) fprintf(stderr, fmt, ##a)
 #define PR04(a...) PR04_(a);
-#if defined(ESP8266) || defined(ESP32) || defined(CONFIG_IDF_TARGET_ESP32)
+#if defined(ESP8266) || defined(ESP32) || defined(CONFIG_IDF_TARGET_ESP32_)
 #define PR05_(fmt, a...) Serial.printf(fmt, ##a)
 #else
 #define PR05_(fmt, a...) printf(fmt, ##a)
@@ -64,8 +64,9 @@ typedef _i64          *_i64p;
 #define TP04 PR04_("%s\n", __func__);
 #define TP05 PR05_("%s\n", __func__);
 #define TP07 PR07("%s\n", __func__);
-#define GV05(a) PR05_("val: %s == 0x%lx\n", #a, (_u64)(a));
-#define GV07(a) PR07("val: %s == 0x%lx\n", #a, (_u64)(a));
+#define GV05(a) PR05_("val: %s == 0x%x\n", #a, (_u32)(a));
+#define GW05(a) PR05_("val: %s == 0x%llx\n", #a, (_u64)(a));
+#define GV07(a) PR07("val: %s == 0x%x\n", #a, (_u32)(a));
 #define GS05(a) PR05_("str: %s [ %s ]\n", #a, a);
 #define GS07(a) PR07("str: %s [ %s ]\n", #a, a);
 #define DM05(a, b, c) PR05("raw: " #a " "); fct4_dump_u32((_u8p)(a), (b), (c));
