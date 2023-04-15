@@ -1,6 +1,6 @@
 MACHINE != uname -n
 ifeq ($(MACHINE),roja)
-    FLAGS = -DCFG_LOCAL
+    FLAGS = -DMCFG_LOCAL
 endif
 ifneq ($(findstring esp32-2 ,$(MAKECMDGOALS)),)
     OTA_ADDR = esp32-2

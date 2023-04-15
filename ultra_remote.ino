@@ -5,10 +5,10 @@
 this may not happen
 #endif
 
-#ifdef CFG_LOCAL
-#include "cfg_local.h"
+#ifdef MCFG_LOCAL
+#include "mcfg_local.h"
 #else
-#include "cfg.h"
+#include "mcfg.h"
 #endif
 #include "mlcf.h"
 #include "mota.h"
