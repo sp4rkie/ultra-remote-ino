@@ -1,48 +1,219 @@
 #if defined(ESP32_2)
-//#   define TESTER_MODE                      // continuous beep for signal strength analysis
-#   define DEBUG 2
+
+#   define DEBUG    2
+//    #define BUZZER  2
+
+#elif defined(ESP32_10)
+
+#   define DEBUG     0
+#   define BUZZER    2
+
 #else
 this may not happen
 #endif
 
+// sense keys pulled down by 100k (no key pressed)
+#define KEY_SNS_0 25
+#define KEY_SNS_1 26
+#define KEY_SNS_2 27
+#define KEY_SNS_3 14
+
+// feeder keys pulled up by 51k (no key pressed)
+// sense keys connect to feeders on cross point 
+// when the corresponding key is depressed
+// causing a 'high' level being detected to wakeup.
+// after this the matrix is scanned.
+#define KEY_HOT_UL 33
+#define KEY_HOT_UR 32
+#define KEY_HOT_LL 4 
+#define KEY_HOT_LR 12
+
+#define KEY_NONE 0xff
+
 #ifdef MCFG_LOCAL
 #include "mcfg_local.h"
+#include "mcfg_locals.h"
 #else
 #include "mcfg.h"
 #endif
 #include "mlcf.h"
 #include "mota.h"
-#include <esp_wifi.h>                   // required by esp_wifi_stop()
+#include <esp_wifi.h>
+
+#define KEY_SNS_MASK (1 << KEY_SNS_0 | \
+                      1 << KEY_SNS_1 | \
+                      1 << KEY_SNS_2 | \
+                      1 << KEY_SNS_3)
+
+_u8 key_sns[] = {   // rows
+    KEY_SNS_0,
+    KEY_SNS_1,
+    KEY_SNS_2,
+    KEY_SNS_3,
+};
+
+_u8 key_hot[] = {   // cols
+    KEY_HOT_UL,
+    KEY_HOT_UR,
+    KEY_HOT_LL,
+    KEY_HOT_LR,
+};
+
+/*
+00 10
+01 11
+02 12
+03 13
+20 30
+21 31
+22 32
+23 33
+*/
+#define KEY_11 0x00
+#define KEY_12 0x01
+#define KEY_13 0x02
+#define KEY_14 0x03
+#define KEY_15 0x20
+#define KEY_16 0x21
+#define KEY_17 0x22
+#define KEY_18 0x23
+#define KEY_01 0x10
+#define KEY_02 0x11
+#define KEY_03 0x12
+#define KEY_04 0x13
+#define KEY_05 0x30
+#define KEY_06 0x31
+#define KEY_07 0x32
+#define KEY_08 0x33
 
 _i8 started_wifi;
 _u8 key;
 
 void
-init_key()
+exec_cmd(_u8 key)
 {
-    pinMode(BUTTON, INPUT_PULLUP);    // ext0_wakeup()
+    _u8p cmd = 0;
+
+    if (key == KEY_11) {
+        cmd = "zp ^";
+    } else if (key == KEY_01) {
+        cmd = "zm ^";
+    } else if (key == KEY_12) {
+//        cmd = "zh ^";
+        cmd = "@vol=5%- ^roja ^";
+    } else if (key == KEY_02) {
+//        cmd = "zk ^";
+        cmd = "@vol=5%+ ^roja ^";
+    } else if (key == KEY_13) {
+        cmd = "zb ^";
+    } else if (key == KEY_03) {
+        cmd = "zn ^";
+    } else if (key == KEY_14) {
+        cmd = "zc ^";
+    } else if (key == KEY_04) {
+        cmd = "zx ^";
+    } else if (key == KEY_15) {
+        cmd = "zt ^";
+    } else if (key == KEY_05) {
+        cmd = "zr ^";
+    } else if (key == KEY_16) {
+        cmd = "cq ^";
+    } else if (key == KEY_06) {
+        cmd = "zv ^";
+    } else if (key == KEY_17) {
+        cmd = "cu ^";
+    } else if (key == KEY_07) {
+//        cmd = "zj ^";
+        cmd = "@vol=60% ^roja ^";
+    } else if (key == KEY_18) {
+        cmd = "cy ^";
+    } else if (key == KEY_08) {
+        cmd = "xc ^";
+    } else {
+        Serial.printf("illeg key: %02x\n", key);
+    }
+    if (cmd) {
+        mysend(cmd, TARGET_HOST, TARGET_PORT, 0);
+    }
+}
+
+#if defined(ESP32_2)
+
+#define KEY_FAKE_0 4
+#define KEY_FAKE_1 2
+
+void
+init_matrix()
+{
+    pinMode(KEY_FAKE_0, INPUT_PULLUP);      // ext0_wakeup(), has no external pull-Rs
+    pinMode(KEY_FAKE_1, INPUT);             // ext1_wakeup() [ not used here ], with external 470k PULLDOWN
 }
 
 _u8
-scan_key()
+scan_matrix()
 {
-    return !digitalRead(BUTTON);
+    if (digitalRead(KEY_FAKE_0)) {      // low if pressed (internal pull-up)
+        return KEY_NONE;                
+    } else {
+        if (digitalRead(KEY_FAKE_1)) {  // high if pressed
+            return KEY_07;  // simulate mis volume
+        } else {
+            return KEY_11;  // simulate player pause
+        }
+    }
 }
+
+#else
+
+void
+init_matrix()
+{
+    _u8 h, s;
+
+    for (h = 0; h < _NE(key_hot); ++h) {
+        pinMode(key_hot[h], OUTPUT);
+    }
+    for (s = 0; s < _NE(key_sns); ++s) {
+#if defined(ESP32_2)
+        pinMode(key_sns[s], INPUT_PULLDOWN);     // no external circuitry avail
+#else
+        pinMode(key_sns[s], INPUT);
+#endif
+    }
+}
+
+_u8
+scan_matrix()
+{
+    _u8 h, s, i, key;
+
+    key = KEY_NONE;
+    for (h = 0; h < _NE(key_hot); ++h) {
+        for (i = 0; i < _NE(key_hot); ++i) {
+            digitalWrite(key_hot[i], h == i);
+        }
+        for (s = 0; s < _NE(key_sns); ++s) {
+            if (digitalRead(key_sns[s])) {
+                key = h << 4 | s;
+                goto end;
+            }
+        }
+    }
+end:
+    return key;
+}
+
+#endif
 
 void 
 setup()
 {
     Serial.begin(115200);
-if (DEBUG > 5) TP05
-    init_key();
-    key = scan_key();
-
-#ifdef TESTER_MODE
-    key = 1; bootCount = 1;
-#endif
+    init_matrix();
+    key = scan_matrix();
 
 if (DEBUG > 5) Serial.printf("A key: 0x%x\n", key);
-    if (key && !bootCount) {
+    if (key != KEY_NONE && !bootCount) {
         if (!mysetup_intro(OTA_SSID, __FILE__, 0)) {
             myota(OTA_PERIOD);
         }
@@ -51,73 +222,34 @@ if (DEBUG > 5) Serial.printf("A key: 0x%x\n", key);
                         // wouldn't reach this point in that case anyway
                         // we must do this to allow SSID and PASS being reprogrammed
                         // to standard values in case OTA did not take place and/or failed
-    } else if (!key) {
+    } else if (key == KEY_NONE) {
         started_wifi = !mysetup_intro(NA_SSID, __FILE__, 0);  // do not activate WiFi -> started_wifi == 0
     } else {
         started_wifi = !mysetup_intro(ROTA2G_SSID, __FILE__, 0);
     }
 }
 
-/*
- * typical timing profiles
- *
- * [ /tmp/mkESP/ultra_door_1b_esp32/ultra_door_1b.ino.cpp on esp32_2 ] ready to operate, WiFi stat: WL_CONNECTED
- * <TP02: 186>
- * <cmd: ca ^
- * .stat: #[XX]#[0]#[0]#[xxx]#[0]#[0]
- * >
- * <TP03: 239>
- * key RELEASED
- * <cmd: ci ^
- * .stat: #[XX]#[0]#[0]#[xxx]#[0]#[0]
- * >
- * <TP04: 280>
- * 
- * EV: 284 Disconnected from WiFi access point
- * EV: 306 WiFi clients stopped
- * <TP14: 315>
- */
 void 
 loop()
 {
-    _i32 err = 0;
-
-if (DEBUG > 5) TP05
-#ifdef TESTER_MODE
-    delay(500);
-#endif
     if (started_wifi) {
-        _i8 _buf[64];
-
-        if (!err && mysend("@beep= f:1000 c:1 t:.05 p:.25 g:-20 ^roja ^", TARGET_HOST, TARGET_PORT, 0)) {
-            Serial.printf("could not issue intro cmd\n");
-            ++err;
-        }
-if (DEBUG) Serial.printf("<TP03: %u>\n", millis());         // <= ESSENTIAL TP03: wakeup to status
-if (DEBUG > 1) Serial.printf("RSSI: %d\n", WiFi.RSSI());
-        while (key = scan_key()) {
+        exec_cmd(key);
+if (DEBUG) Serial.printf("<TP03: %u>\n", millis());
+        while ((key = scan_matrix()) != KEY_NONE) {
 if (DEBUG > 5) Serial.printf("C key: 0x%x\n", key);
             delay(100);
         }
-#ifdef TESTER_MODE
-        delay(500);
-#endif
-if (DEBUG > 1) Serial.printf("key RELEASED\n");
-        sprintf(_buf, "@beep= f:%d c:1 t:.05 p:.25 g:-20 ^roja ^", 1000 + 4 * (-WiFi.RSSI() - 60));
-        if (!err && mysend(_buf, TARGET_HOST, TARGET_PORT, 0)) {
-            Serial.printf("could not issue extro cmd\n");
-            ++err;
-        }
+Serial.printf("key RELEASED\n");
     }
-#ifndef TESTER_MODE
     esp_wifi_stop();
-    esp_sleep_enable_ext0_wakeup(BUTTON, 0);              // 1 = High, 0 = Low     
+#if defined(ESP32_2)
+    esp_sleep_enable_ext0_wakeup(KEY_FAKE_0, 0);              // 1 = High, 0 = Low, goes to low if pressed
+#else
+    esp_sleep_enable_ext1_wakeup(KEY_SNS_MASK, ESP_EXT1_WAKEUP_ANY_HIGH);
 #endif
     beep_sync();  // flush all tones collected so far
 if (DEBUG > 5) Serial.printf("<TP14: %u>\n", millis());
     Serial.flush();
-#ifndef TESTER_MODE
     esp_deep_sleep_start();
-#endif
 }
 
