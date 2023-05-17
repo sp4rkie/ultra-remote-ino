@@ -11,6 +11,7 @@ else ifneq ($(findstring esp32-9 ,$(MAKECMDGOALS)),)
     ultra_remote.ino.cpp_CFLAGS = -DESP32_9 -fpermissive $(FLAGS)
 #    FLASH_DEF = 16M
 endif
+
 ifeq ($(OTA_ADDR),)
     $(error params wrong or missing: make <machine> <target>)
 endif
@@ -24,7 +25,7 @@ endif
 
 CHIP = esp32
 BOARD = esp32
-UPLOAD_SPEED = 921600
+UPLOAD_SPEED = 2000000
 #1
 UPLOAD_PORT = /dev/serial/by-id/usb-Silicon_Labs_CP2104_USB_to_UART_Bridge_Controller_0255CF15-if00-port0
 #2
@@ -33,7 +34,6 @@ UPLOAD_PORT = /dev/serial/by-id/usb-Silicon_Labs_CP2104_USB_to_UART_Bridge_Contr
 ESP_ROOT = $(HOME)/esp32
 LIBS = $(HOME)/Arduino/libraries
 include $(HOME)/makeEspArduino/makeEspArduino.mk
-BUILD_OPT_H := $(shell touch $(BUILD_DIR)/build_opt.h)  # work around https://github.com/plerup/makeEspArduino/issues/189
 
 esp32-2: FRC
 esp32-9: FRC
