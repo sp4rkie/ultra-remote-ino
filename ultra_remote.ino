@@ -133,7 +133,7 @@ exec_cmd(_u8 key)
         Serial.printf("illeg key: %02x\n", key);
     }
     if (cmd) {
-        mysend(cmd, TARGET_HOST, TARGET_PORT, 0);
+        mysend(cmd, STD_TARGET_HOST, STD_TARGET_PORT, 0);
     }
 }
 
